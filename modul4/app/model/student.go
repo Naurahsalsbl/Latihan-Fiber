@@ -28,6 +28,7 @@ type WebResponse struct {
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 	Meta    *Meta  `json:"meta,omitempty"`
+	Errors	any	   `json:"errors,omitempty"`
 }
  
 type Meta struct {
