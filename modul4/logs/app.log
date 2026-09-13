@@ -1,0 +1,19 @@
+{"time":"2026-09-05T15:48:10.6080945+07:00","level":"INFO","msg":"server berjalan","port":"3000"}
+{"time":"2026-09-05T15:51:51.6675317+07:00","level":"INFO","msg":"http_request","request_id":"7c057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students","status":200,"duration":86360300,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:37:44.5014481+07:00","level":"INFO","msg":"http_request","request_id":"7d057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/students","status":404,"duration":1003000,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:38:28.2439881+07:00","level":"INFO","msg":"http_request","request_id":"7e057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students","status":200,"duration":6021100,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:40:09.9152453+07:00","level":"INFO","msg":"http_request","request_id":"7f057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students","status":200,"duration":9790100,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:41:08.2955108+07:00","level":"INFO","msg":"http_request","request_id":"80057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students/1","status":404,"duration":505800,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:41:16.9912078+07:00","level":"INFO","msg":"http_request","request_id":"81057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students/2","status":200,"duration":508000,"ip":"127.0.0.1"}
+{"time":"2026-09-05T16:41:32.2731373+07:00","level":"INFO","msg":"http_request","request_id":"82057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students/2","status":200,"duration":1238600,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:01:18.7819768+07:00","level":"INFO","msg":"http_request","request_id":"83057ae3-84b6-46cf-88eb-3d740206c1fc","method":"POST","path":"/api/v1/students","status":201,"duration":20535600,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:02:50.2346162+07:00","level":"INFO","msg":"http_request","request_id":"84057ae3-84b6-46cf-88eb-3d740206c1fc","method":"PUT","path":"/api/v1/students/5","status":409,"duration":24133200,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:03:55.9451555+07:00","level":"INFO","msg":"http_request","request_id":"85057ae3-84b6-46cf-88eb-3d740206c1fc","method":"PUT","path":"/api/v1/students/5","status":200,"duration":30930100,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:06:06.515058+07:00","level":"INFO","msg":"http_request","request_id":"86057ae3-84b6-46cf-88eb-3d740206c1fc","method":"PATCH","path":"/api/v1/students/6","status":404,"duration":1789400,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:06:16.3303954+07:00","level":"INFO","msg":"http_request","request_id":"87057ae3-84b6-46cf-88eb-3d740206c1fc","method":"PATCH","path":"/api/v1/students/5","status":200,"duration":10857100,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:08:00.8512138+07:00","level":"INFO","msg":"http_request","request_id":"88057ae3-84b6-46cf-88eb-3d740206c1fc","method":"DELETE","path":"/api/v1/students/5","status":200,"duration":2558900,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:09:42.0128432+07:00","level":"INFO","msg":"http_request","request_id":"89057ae3-84b6-46cf-88eb-3d740206c1fc","method":"GET","path":"/api/v1/students/12","status":404,"duration":1834900,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:10:33.7874131+07:00","level":"INFO","msg":"http_request","request_id":"8a057ae3-84b6-46cf-88eb-3d740206c1fc","method":"POST","path":"/api/v1/students","status":409,"duration":1442800,"ip":"127.0.0.1"}
+{"time":"2026-09-05T17:11:11.6505222+07:00","level":"INFO","msg":"http_request","request_id":"8b057ae3-84b6-46cf-88eb-3d740206c1fc","method":"POST","path":"/api/v1/students","status":400,"duration":0,"ip":"127.0.0.1"}
+{"time":"2026-09-05T23:43:11.4093777+07:00","level":"INFO","msg":"sinyal berhenti diterima, menutup server"}
+{"time":"2026-09-05T23:43:11.4781458+07:00","level":"INFO","msg":"server berhenti dengan rapi"}
