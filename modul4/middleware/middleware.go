@@ -22,10 +22,12 @@ import (
 // menambah beberapa header (mis. X-Request-Id, Access-Control-*) dan
 // menangkap panic agar server tidak mati. Karena itu penambahan ini aman
 // terhadap syarat "perilaku HTTP tidak boleh berubah".
-func Register(app *fiber.App, logger *slog.Logger) {
-	app.Use(requestid.New())       // 1. beri setiap request satu ID unik
-	app.Use(recover.New())         // 2. tangkap panic agar server tidak mati
-	app.Use(cors.New())            // 3. atur Cross-Origin Resource Sharing
+func Register(app *fiber.App, logger *slog.Logger, allowedOrigins string) {
+	app.Use(requestid.New()) // 1. beri setiap request satu ID unik
+	app.Use(recover.New())   // 2. tangkap panic agar server tidak mati
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: allowedOrigins,
+	})) // 3. atur Cross-Origin Resource Sharing
 	app.Use(RequestLogger(logger)) // 4. catat setiap request ke logger terstruktur
 }
 
