@@ -4,28 +4,26 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 
-	"latihan-fiber/modul4/app/service"
 	"latihan-fiber/modul4/helper"
 	"latihan-fiber/modul4/middleware"
 	"latihan-fiber/modul4/route"
 )
 
 // NewApp merakit aplikasi: membuat instance Fiber, memasang middleware,
-// lalu mendaftarkan route. File ini adalah tempat seluruh bagian bertemu.
-func NewApp(
-	logger *slog.Logger, pool *pgxpool.Pool, studentService *service.StudentService,
-) *fiber.App {
+// lalu mendaftarkan route.
+func NewApp(logger *slog.Logger, deps route.Dependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Praktikum Backend Lanjut - api-students"),
 		ErrorHandler: newErrorHandler(logger),
+		// Membatasi ukuran body mencegah satu request besar menghabiskan
+		// memori server (denial of service yang paling murah dilakukan).
+		BodyLimit: 1 * 1024 * 1024, // 1 MB
 	})
 
-	middleware.Register(app, logger)
-	route.Register(app, pool, studentService)
+	middleware.Register(app, logger, GetEnv("ALLOWED_ORIGINS", "*"))
+	route.Register(app, deps)
 
-	// Penampung terakhir untuk URL yang tidak dikenal.
 	app.Use(func(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusNotFound, "endpoint tidak ditemukan")
 	})
@@ -33,8 +31,6 @@ func NewApp(
 	return app
 }
 
-// newErrorHandler adalah jaring pengaman terakhir: error yang tidak
-// tertangani di service berakhir di sini dengan format yang tetap konsisten.
 func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		status := fiber.StatusInternalServerError
