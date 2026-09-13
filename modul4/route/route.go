@@ -9,29 +9,48 @@ import (
 
 	"latihan-fiber/modul4/app/service"
 	"latihan-fiber/modul4/helper"
+	"latihan-fiber/modul4/middleware"
 )
+
+// Dependencies mengumpulkan seluruh service jadi satu struct, supaya
+// penambahan service berikutnya tidak mengubah tanda tangan Register.
+type Dependencies struct {
+	Pool           *pgxpool.Pool
+	JWT            *helper.JWTManager
+	StudentService *service.StudentService
+	AuthService    *service.AuthService
+}
 
 // Register memetakan URL ke method pada service.
 //
-// Perhatikan isi file ini: tidak ada logika bisnis, tidak ada query,
-// tidak ada validasi. Hanya daftar alamat dan siapa yang melayaninya.
-func Register(app *fiber.App, pool *pgxpool.Pool, studentService *service.StudentService) {
+// Pembagian di bawah ini dapat dibaca sekilas: endpoint mana yang publik,
+// mana yang untuk masuk, dan mana yang terkunci di belakang token.
+func Register(app *fiber.App, deps Dependencies) {
 	api := app.Group("/api/v1")
 
-	api.Get("/health", healthCheck(pool))
+	// --- publik, tidak perlu token ---
+	api.Get("/health", healthCheck(deps.Pool))
 
-	s := api.Group("/students")
-	s.Get("/", studentService.List)
-	s.Get("/:id", studentService.Get)
-	s.Post("/", studentService.Create)
-	s.Put("/:id", studentService.Replace)
-	s.Patch("/:id", studentService.Patch)
-	s.Delete("/:id", studentService.Delete)
+	// --- autentikasi ---
+	auth := api.Group("/auth", middleware.RequireJSON)
+	auth.Post("/register", deps.AuthService.Register)
+	auth.Post("/login", middleware.LoginRateLimiter(), deps.AuthService.Login)
+	auth.Post("/refresh", deps.AuthService.Refresh)
+	auth.Post("/logout", deps.AuthService.Logout)
+	auth.Get("/me", middleware.RequireAuth(deps.JWT), deps.AuthService.Me)
+
+	// --- wajib membawa access token yang sah ---
+	s := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	s.Get("/", deps.StudentService.List)
+	s.Get("/:id", deps.StudentService.Get)
+	s.Post("/", deps.StudentService.Create)
+	s.Put("/:id", deps.StudentService.Replace)
+	s.Patch("/:id", deps.StudentService.Patch)
+	s.Delete("/:id", deps.StudentService.Delete)
 }
 
-// healthCheck melaporkan kondisi layanan beserta databasenya.
-// Sebelumnya berada inline di main.go; dipindah ke sini agar main.go
-// hanya berisi urutan perakitan (lihat Modul 4 Langkah 6-7).
+// healthCheck melaporkan kondisi layanan beserta databasenya. Tetap publik
+// karena dipakai load balancer/monitoring yang tidak punya access token.
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
