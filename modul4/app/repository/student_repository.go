@@ -27,6 +27,7 @@ var (
 type StudentRepository interface {
 	FindAll(ctx context.Context, q model.ListQuery) ([]model.Student, int, error)
 	FindByID(ctx context.Context, id int) (model.Student, error)
+	FindOwnerID(ctx context.Context, id int) (*int, error)
 	Create(ctx context.Context, s model.Student) (model.Student, error)
 	Update(ctx context.Context, s model.Student) (model.Student, error)
 	Patch(ctx context.Context, id int, req model.PatchStudentRequest) (model.Student, error)
@@ -87,7 +88,7 @@ func (r *studentPostgresRepository) FindAll(ctx context.Context, q model.ListQue
 	}
  
 	sqlText := fmt.Sprintf(
-		`SELECT id, nim, name, grade, is_active, created_at FROM students%s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+		`SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students%s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
 		where, kolom, arah, len(args)+1, len(args)+2,
 	)
 	args = append(args, q.Limit, q.Offset())
@@ -101,7 +102,7 @@ func (r *studentPostgresRepository) FindAll(ctx context.Context, q model.ListQue
 	list := []model.Student{}
 	for rows.Next() {
 		var s model.Student
-		if err := rows.Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("membaca baris student: %w", err)
 		}
 		list = append(list, s)
@@ -112,8 +113,8 @@ func (r *studentPostgresRepository) FindAll(ctx context.Context, q model.ListQue
  
 func (r *studentPostgresRepository) FindByID(ctx context.Context, id int) (model.Student, error) {
 	var s model.Student
-	err := r.pool.QueryRow(ctx, `SELECT id, nim, name, grade, is_active, created_at FROM students WHERE id = $1`, id).
-		Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt)
+	err := r.pool.QueryRow(ctx, `SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students WHERE id = $1`, id).
+		Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
@@ -122,11 +123,23 @@ func (r *studentPostgresRepository) FindByID(ctx context.Context, id int) (model
 	}
 	return s, nil
 }
+
+func (r *studentPostgresRepository) FindOwnerID(ctx context.Context, id int) (*int, error) {
+	var ownerID *int
+	err := r.pool.QueryRow(ctx, `SELECT owner_id FROM students WHERE id = $1`, id).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("mengambil owner_id student: %w", err)
+	}
+	return ownerID, nil
+}
  
 func (r *studentPostgresRepository) Create(ctx context.Context, s model.Student) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO students (nim, name, grade, is_active) VALUES ($1, $2, $3, $4) RETURNING id, created_at`,
-		s.NIM, s.Name, s.Grade, s.IsActive,
+		`INSERT INTO students (nim, name, grade, is_active, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
+		s.NIM, s.Name, s.Grade, s.IsActive, s.OwnerID,
 	).Scan(&s.ID, &s.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -139,9 +152,9 @@ func (r *studentPostgresRepository) Create(ctx context.Context, s model.Student)
  
 func (r *studentPostgresRepository) Update(ctx context.Context, s model.Student) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-		`UPDATE students SET nim = $1, name = $2, grade = $3, is_active = $4 WHERE id = $5 RETURNING id, nim, name, grade, is_active, created_at`,
+		`UPDATE students SET nim = $1, name = $2, grade = $3, is_active = $4 WHERE id = $5 RETURNING id, nim, name, grade, is_active, owner_id, created_at`,
 		s.NIM, s.Name, s.Grade, s.IsActive, s.ID,
-	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt)
+	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
@@ -164,7 +177,7 @@ func (r *studentPostgresRepository) Patch(ctx context.Context, id int, req model
 		     grade = COALESCE($3, grade),
 		     is_active = COALESCE($4, is_active)
 		 WHERE id = $5
-		 RETURNING id, nim, name, grade, is_active, created_at`,
+		 RETURNING id, nim, name, grade, is_active, owner_id, created_at`,
 		req.NIM,
 		req.Name,
 		req.Grade,
@@ -176,6 +189,7 @@ func (r *studentPostgresRepository) Patch(ctx context.Context, id int, req model
 		&s.Name,
 		&s.Grade,
 		&s.IsActive,
+		&s.OwnerID,
 		&s.CreatedAt,
 	)
  
