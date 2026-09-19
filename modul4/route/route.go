@@ -17,6 +17,7 @@ import (
 type Dependencies struct {
 	Pool           *pgxpool.Pool
 	JWT            *helper.JWTManager
+	Permissions    *helper.PermissionSet
 	StudentService *service.StudentService
 	AuthService    *service.AuthService
 }
@@ -39,14 +40,25 @@ func Register(app *fiber.App, deps Dependencies) {
 	auth.Post("/logout", deps.AuthService.Logout)
 	auth.Get("/me", middleware.RequireAuth(deps.JWT), deps.AuthService.Me)
 
-	// --- wajib membawa access token yang sah ---
-	s := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
-	s.Get("/", deps.StudentService.List)
-	s.Get("/:id", deps.StudentService.Get)
-	s.Post("/", deps.StudentService.Create)
-	s.Put("/:id", deps.StudentService.Replace)
-	s.Patch("/:id", deps.StudentService.Patch)
-	s.Delete("/:id", deps.StudentService.Delete)
+		// --- wajib membawa access token yang sah ---
+		s := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+		perms := deps.Permissions
+
+		// Hak dapat diputuskan tanpa melihat data -> middleware.
+		s.Get("/",
+			middleware.RequirePermission(perms, "student:list"),
+			deps.StudentService.List)
+		s.Post("/",
+			middleware.RequirePermission(perms, "student:create"),
+			deps.StudentService.Create)
+		s.Delete("/:id",
+			middleware.RequirePermission(perms, "student:delete"),
+			deps.StudentService.Delete)
+
+		// Hak bergantung pada kepemilikan data -> diperiksa di service.
+		s.Get("/:id", deps.StudentService.Get)
+		s.Put("/:id", deps.StudentService.Replace)
+		s.Patch("/:id", deps.StudentService.Patch)
 }
 
 // healthCheck melaporkan kondisi layanan beserta databasenya. Tetap publik
