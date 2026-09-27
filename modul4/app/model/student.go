@@ -17,9 +17,9 @@ type Student struct {
 // PatchStudentRequest menampung body PATCH. Field pointer supaya
 // "tidak dikirim" (nil) dapat dibedakan dari "dikirim nilai kosong".
 type PatchStudentRequest struct {
-	NIM      *string  `json:"nim,omitempty"`
-	Name     *string  `json:"name,omitempty"`
-	Grade    *float64 `json:"grade,omitempty"`
+	NIM      *string  `json:"nim,omitempty" validate:"omitnil,required,nim"`
+	Name     *string  `json:"name,omitempty" validate:"omitnil,min=1"`
+	Grade    *float64 `json:"grade,omitempty" validate:"omitnil,gte=0,lte=100"`
 	IsActive *bool    `json:"is_active,omitempty"`
 }
  
@@ -28,7 +28,7 @@ type WebResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
-	Meta    *Meta  `json:"meta,omitempty"`
+	Meta    any  `json:"meta,omitempty"`
 	Errors	any	   `json:"errors,omitempty"`
 }
  
@@ -53,3 +53,29 @@ type ListQuery struct {
 func (q ListQuery) Offset() int {
 	return (q.Page - 1) * q.Limit
 }
+
+// ErrorResponse adalah bentuk BAKU untuk seluruh respons kegagalan,
+// dihasilkan hanya oleh ErrorHandler terpusat di config/app.go.
+type ErrorResponse struct {
+	Success   bool              `json:"success"`
+	Code      string            `json:"code"`
+	Message   string            `json:"message"`
+	Fields    map[string]string `json:"fields,omitempty"`
+	RequestID string            `json:"request_id,omitempty"`
+}
+
+// POST - semua field wajib
+type CreateStudentRequest struct {
+	NIM   string  `json:"nim" validate:"required,nim"`
+	Name  string  `json:"name" validate:"required"`
+	Grade float64 `json:"grade" validate:"required,gte=0,lte=100"`
+}
+
+// PUT - semua field wajib
+type ReplaceStudentRequest struct {
+	NIM      string  `json:"nim" validate:"required,nim"`
+	Name     string  `json:"name" validate:"required"`
+	Grade    float64 `json:"grade" validate:"required,gte=0,lte=100"`
+	IsActive bool    `json:"is_active"`
+}
+
