@@ -2,44 +2,12 @@ package service
 
 import "latihan-fiber/modul4/app/model"
 
-// File ini berisi business rules MURNI: tidak mengimpor Fiber,
-// tidak mengimpor repository, dan tidak mengetahui apa pun tentang HTTP.
-// Karena itu seluruh fungsi di sini dapat diuji hanya dengan memanggilnya
-// langsung, tanpa menyalakan server maupun database (lihat student_rules_test.go).
-//
-// Pesan dan urutan pemeriksaan di bawah ini SENGAJA dipertahankan persis
-// sama seperti pada handler lama (Pertemuan 3), agar perilaku HTTP-nya
-// tidak berubah setelah dipindahkan.
-
-// ValidateCreate memeriksa isi permintaan POST.
-// Mengembalikan string kosong bila lolos, atau pesan kesalahan pertama
-// yang ditemukan (mengikuti urutan pemeriksaan pada kode asli).
-func ValidateCreate(req model.Student) string {
-	if req.NIM == "" || req.Name == "" {
-		return "NIM, nama, dan grade wajib diisi"
-	}
-	if req.Grade < 0 || req.Grade > 100 {
-		return "grade harus di antara 0 dan 100"
-	}
-	return ""
-}
-
-// ValidateReplace memeriksa isi permintaan PUT.
-// Aturannya sama dengan ValidateCreate karena PUT mewajibkan
-// seluruh field tetap terisi.
-func ValidateReplace(req model.Student) string {
-	if req.NIM == "" || req.Name == "" {
-		return "NIM, nama, dan grade wajib diisi"
-	}
-	if req.Grade < 0 || req.Grade > 100 {
-		return "grade harus di antara 0 dan 100"
-	}
-	return ""
-}
-
 // IsEmptyPatch menandai permintaan PATCH yang tidak mengubah field apa pun.
 func IsEmptyPatch(req model.PatchStudentRequest) bool {
-	return req.NIM == nil && req.Name == nil && req.Grade == nil && req.IsActive == nil
+	return req.NIM == nil && 
+		req.Name == nil && 
+		req.Grade == nil && 
+		req.IsActive == nil
 }
 
 // ValidatePatch memeriksa isi permintaan PATCH. Hanya field yang dikirim
