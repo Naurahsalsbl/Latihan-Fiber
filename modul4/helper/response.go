@@ -27,6 +27,20 @@ func SuccessList(c *fiber.Ctx, message string, data any, meta model.Meta) error 
 	})
 }
 
+func SuccessCursor(
+	c *fiber.Ctx,
+	message string,
+	data any,
+	meta *model.CursorMeta,
+) error {
+	return c.Status(fiber.StatusOK).JSON(model.WebResponse{
+		Status:  "success",
+		Message: message,
+		Data:    data,
+		Meta:    meta,
+	})
+}
+
 // Created mengirim respons 201 disertai header Location.
 // BARU pada Pertemuan 5, dipakai oleh AuthService.Register.
 // Tidak dipakai oleh StudentService (perilakunya sengaja tidak diubah).
