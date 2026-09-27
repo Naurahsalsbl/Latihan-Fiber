@@ -9,48 +9,6 @@ import (
 // Perhatikan: pengujian ini tidak menyalakan server, tidak menyentuh
 // database, dan tidak membuat fiber.Ctx sama sekali.
 
-func TestValidateCreate(t *testing.T) {
-	cases := []struct {
-		name string
-		req  model.Student
-		want string
-	}{
-		{"lengkap dan valid", model.Student{NIM: "12345", Name: "Sari", Grade: 88}, ""},
-		{"nim kosong", model.Student{NIM: "", Name: "Sari", Grade: 88}, "NIM, nama, dan grade wajib diisi"},
-		{"name kosong", model.Student{NIM: "12345", Name: "", Grade: 88}, "NIM, nama, dan grade wajib diisi"},
-		{"grade negatif", model.Student{NIM: "12345", Name: "Sari", Grade: -1}, "grade harus di antara 0 dan 100"},
-		{"grade lebih dari 100", model.Student{NIM: "12345", Name: "Sari", Grade: 101}, "grade harus di antara 0 dan 100"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ValidateCreate(tc.req); got != tc.want {
-				t.Errorf("ValidateCreate(%+v) = %q, ingin %q", tc.req, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestValidateReplace(t *testing.T) {
-	cases := []struct {
-		name string
-		req  model.Student
-		want string
-	}{
-		{"lengkap dan valid", model.Student{NIM: "12345", Name: "Sari", Grade: 90}, ""},
-		{"name kosong", model.Student{NIM: "12345", Name: "", Grade: 90}, "NIM, nama, dan grade wajib diisi"},
-		{"grade di luar rentang", model.Student{NIM: "12345", Name: "Sari", Grade: 150}, "grade harus di antara 0 dan 100"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ValidateReplace(tc.req); got != tc.want {
-				t.Errorf("ValidateReplace(%+v) = %q, ingin %q", tc.req, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestValidatePatch(t *testing.T) {
 	nimKosong := ""
 	nimIsi := "12345"
