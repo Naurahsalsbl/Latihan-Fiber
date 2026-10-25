@@ -67,18 +67,19 @@ func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 		// sistem; mencatatnya sebagai Error membuat log penuh bising
 		// sehingga kerusakan yang sesungguhnya justru tenggelam.
 		if appErr.Status < fiber.StatusInternalServerError {
-			logger.Error("request_rejected",
+			logger.Warn("request_rejected",
 				slog.String("request_id", requestID),
 				slog.String("path", c.Path()),
 				slog.String("code", appErr.Code),
 				slog.Int("status", appErr.Status),
 				slog.String("error", appErr.Error()))
 		} else {
-			logger.Warn("request_rejected",
+			logger.Error("request_failed",
 				slog.String("request_id", requestID),
 				slog.String("path", c.Path()),
 				slog.String("code", appErr.Code),
-				slog.Int("status", appErr.Status))
+				slog.Int("status", appErr.Status),
+				slog.String("error", appErr.Error()))
 		}
 
 		return c.Status(appErr.Status).JSON(model.ErrorResponse{
