@@ -20,6 +20,8 @@ type Dependencies struct {
 	Permissions    *helper.PermissionSet
 	StudentService *service.StudentService
 	AuthService    *service.AuthService
+	CourseService  *service.CourseService
+	SupervisionService *service.SupervisionService
 }
 
 // Register memetakan URL ke method pada service.
@@ -59,6 +61,46 @@ func Register(app *fiber.App, deps Dependencies) {
 		s.Get("/:id", deps.StudentService.Get)
 		s.Put("/:id", deps.StudentService.Replace)
 		s.Patch("/:id", deps.StudentService.Patch)
+
+		
+		// --- kelas dan KRS ---
+		courses := api.Group("/courses",
+			middleware.RequireJSON,
+			middleware.RequireAuth(deps.JWT),
+		)
+
+		// /mine harus didaftarkan sebelum /:id
+		courses.Get("/", deps.CourseService.List)
+		courses.Get("/mine", deps.CourseService.Mine)
+		courses.Get("/:id", deps.CourseService.Get)
+		courses.Post("/:id/enroll", deps.CourseService.Enroll)
+		courses.Delete("/:id/enroll", deps.CourseService.Drop)
+		courses.Patch("/:id", middleware.RequirePermission(perms, "course:manage"),
+	deps.CourseService.UpdateQuota)
+
+		enrollments := api.Group("/enrollments", 
+			middleware.RequireJSON, 
+			middleware.RequireAuth(deps.JWT))
+		enrollments.Post("/swap", deps.CourseService.Swap)
+
+		// Pengelolaan dosen pembimbing hanya untuk pengguna
+		// yang memiliki permission supervision:manage.
+		supervisors := api.Group(
+			"/supervisors",
+			middleware.RequireJSON,
+			middleware.RequireAuth(deps.JWT),
+			middleware.RequirePermission(perms, "supervision:manage"),
+		)
+		supervisors.Post("/:id/assign", deps.SupervisionService.Assign)
+		supervisors.Patch("/:id", deps.SupervisionService.UpdateQuota)
+
+		supervisions := api.Group(
+			"/supervisions",
+			middleware.RequireJSON,
+			middleware.RequireAuth(deps.JWT),
+			middleware.RequirePermission(perms, "supervision:manage"),
+		)
+		supervisions.Post("/switch", deps.SupervisionService.Switch)
 }
 
 // healthCheck melaporkan kondisi layanan beserta databasenya. Tetap publik
