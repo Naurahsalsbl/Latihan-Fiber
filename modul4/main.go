@@ -51,6 +51,14 @@ func main() {
 	userRepository := repository.NewUserRepository(pool)
 	tokenRepository := repository.NewTokenRepository(pool)
 	roleRepository := repository.NewRoleRepository(pool)
+	courseRepository := repository.NewCourseRepository(pool)
+	supervisorRepository := repository.NewSupervisorRepository(pool)
+	txManager := repository.NewTxManager(pool)
+	courseService := service.NewCourseService(courseRepository, txManager)
+	supervisionService := service.NewSupervisionService(
+		supervisorRepository,
+		txManager,
+		)
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
 	if err != nil {
 		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
@@ -72,6 +80,8 @@ func main() {
 		Permissions:    permissions,
 		StudentService: studentService,
 		AuthService:    authService,
+		CourseService: 	courseService,
+		SupervisionService: supervisionService,
 	})
 	port := config.GetEnv("APP_PORT", "3000")
 
