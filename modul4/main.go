@@ -40,6 +40,21 @@ func main() {
 	}
 	defer pool.Close()
 
+	mongoClient, err := database.NewMongoClient() 
+	if err != nil { 
+		logger.Error("gagal terhubung ke MongoDB", slog.String("error", err.Error())) 
+		os.Exit(1) 
+	} 
+	// Disconnect menutup seluruh koneksi di pool milik driver. Diberi batas 
+	// waktu sendiri, karena context milik request sudah tidak berlaku saat 
+	// aplikasi berhenti. 
+	defer func() { 
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) 
+		defer cancel() 
+		_ = mongoClient.Disconnect(ctx) 
+	}() 
+	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "pbl_prak"))
+
 	// 4. Perakitan dari dalam ke luar
 	jwtManager := helper.NewJWTManager(
 		jwtSecret,
@@ -53,6 +68,10 @@ func main() {
 	roleRepository := repository.NewRoleRepository(pool)
 	courseRepository := repository.NewCourseRepository(pool)
 	supervisorRepository := repository.NewSupervisorRepository(pool)
+	reviewRepository := repository.NewReviewRepository(mongoDB)
+	if err := reviewRepository.EnsureIndexes(context.Background()); err != nil { 
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error())) 
+		os.Exit(1) }
 	txManager := repository.NewTxManager(pool)
 	courseService := service.NewCourseService(courseRepository, txManager)
 	supervisionService := service.NewSupervisionService(
@@ -73,6 +92,15 @@ func main() {
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 
+	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
+
+	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository, permissions)
+
 	// 5. Aplikasi
 	app := config.NewApp(logger, route.Dependencies{
 		Pool:           pool,
@@ -82,6 +110,10 @@ func main() {
 		AuthService:    authService,
 		CourseService: 	courseService,
 		SupervisionService: supervisionService,
+		MongoClient: mongoClient,
+		MongoDB: mongoDB,
+		ReviewService: reviewService,
+		PortfolioService: portfolioService,
 	})
 	port := config.GetEnv("APP_PORT", "3000")
 
