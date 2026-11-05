@@ -27,6 +27,7 @@ type Dependencies struct {
 	MongoDB 			*mongo.Database
 	ReviewService 		*service.ReviewService
 	PortfolioService   	*service.PortfolioService
+	NotificationService *service.NotificationService
 }
 
 // Register memetakan URL ke method pada service.
@@ -130,6 +131,18 @@ func Register(app *fiber.App, deps Dependencies) {
 			middleware.RequireJSON,
 			middleware.RequireAuth(deps.JWT))
 		portfolios.Get("/stats/technologies", deps.PortfolioService.TechnologyStats)
+
+		// --- notifikasi (diisi oleh worker, dibaca lewat API) --- 
+		notifications := api.Group("/notifications", 
+			middleware.RequireJSON, 
+			middleware.RequireAuth(deps.JWT)) 
+		notifications.Get("/mine", deps.NotificationService.Mine) 
+		
+		admin := api.Group("/admin", 
+			middleware.RequireJSON, 
+			middleware.RequireAuth(deps.JWT)) 
+		admin.Get("/queue", middleware.RequirePermission(perms, "queue:monitor"), 
+	deps.NotificationService.Monitor)
 }
 
 // healthCheck kini memeriksa DUA database. Aplikasi dianggap sehat hanya 
