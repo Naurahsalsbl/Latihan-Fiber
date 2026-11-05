@@ -3,7 +3,6 @@ package service
 import ( 
 	"errors" 
 	"strconv"
-	"log"
 
 	"github.com/gofiber/fiber/v2" 
 
@@ -16,11 +15,16 @@ var errCreditLimit = errors.New("batas SKS terlampaui")
 
 type CourseService struct { 
 	courses repository.CourseRepository 
+	outbox  repository.OutboxRepository
 	tx 		*repository.TxManager
 }
 
-func NewCourseService(courses repository.CourseRepository, tx *repository.TxManager) *CourseService { 
-	return &CourseService{courses: courses, tx: tx} 
+func NewCourseService(
+	courses repository.CourseRepository, 
+	outbox  repository.OutboxRepository,
+	tx *repository.TxManager,
+) *CourseService { 
+	return &CourseService{courses: courses, outbox: outbox, tx: tx} 
 }
 
 // ---------- GET /courses ----------
@@ -157,17 +161,28 @@ func (s *CourseService) Enroll(c *fiber.Ctx) error {
 			return err 
 		} 
 		
-		// 4. Catat pendaftarannya. Bila ternyata sudah terdaftar, error 
-		// di sini membatalkan juga penambahan kursi pada langkah 3. 
-		return repo.InsertEnrollment(ctx, courseID, current.UserID) 
-	}) 
-	if err != nil { 
-		return translateCourseError(err) 
-	} 
-	
-	return helper.Created(c, "berhasil mendaftar kelas", enrolled, 
-		"/api/v1/courses/"+strconv.Itoa(courseID)) 
+		// 4. Catat event-nya ke outbox, memakai transaction yang sama. 
+		// Urutan di dalam transaction tidak mengubah hasil akhir: bila 
+		// langkah 5 gagal, catatan ini ikut dibatalkan bersama 
+		// penambahan kursi pada langkah 3. 
+		if err := s.outbox.WithTx(tx).Insert(ctx, model.EventEnrollmentCreated, model.EnrollmentEvent{ 
+			UserID: current.UserID, CourseID: enrolled.ID, 
+			CourseCode: enrolled.Code, CourseName: enrolled.Name, 
+		}); err != nil { 
+			return err 
+		} 
+		
+		// 5. Catat pendaftarannya. Bila ternyata sudah terdaftar, error 
+		// di sini membatalkan seluruh langkah sebelumnya. 
+		return repo.InsertEnrollment(ctx, courseID, current.UserID)
+	})
+	if err != nil {
+		return translateCourseError(err)
+	}
+
+	return helper.Success(c, fiber.StatusCreated, "berhasil mendaftar kelas", enrolled)
 }
+
 
 // ---------- POST /enrollments/swap ---------- 
 // 
@@ -238,7 +253,17 @@ func (s *CourseService) Swap(c *fiber.Ctx) error {
 		if err != nil { 
 			return err 
 		} 
-		return repo.InsertEnrollment(ctx, req.ToCourseID, current.UserID) 
+		if err:= repo.InsertEnrollment(ctx, req.ToCourseID, current.UserID); err != nil {
+			return err
+		}	
+
+		// Satu event "pindah", bukan dua event "keluar" dan "masuk". 
+		// Mahasiswa melakukan satu tindakan, maka ia menerima satu notifikasi.
+		return s.outbox.WithTx(tx).Insert(ctx, model.EventEnrollmentSwapped, model.EnrollmentEvent{
+			UserID: current.UserID, CourseID: to.ID,
+			CourseCode: to.Code, CourseName: to.Name,
+			FromCourseCode: from.Code, FromCourseName: from.Name,
+		})
 	}) 
 	if err != nil { 
 		return translateCourseError(err) 
@@ -246,32 +271,56 @@ func (s *CourseService) Swap(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "berhasil pindah kelas", joined) 
 }
 
-// ---------- PATCH /courses/:id ---------- 
-// Dijaga middleware dengan permission course:manage. 
-func (s *CourseService) UpdateQuota(c *fiber.Ctx) error { 
-	log.Printf("DEBUG: UpdateQuota handler terpanggil")
-	ctx, cancel := helper.RequestContext(c) 
-	defer cancel() 
-	
-	id, valid := helper.ParamID(c) 
-	if !valid { 
-		return helper.BadRequest("id harus berupa angka positif") 
-	} 
-	var req model.UpdateQuotaRequest 
-	if err := c.BodyParser(&req); err != nil { 
-		return helper.BadRequest("body harus berupa JSON yang valid") 
-	} 
-	if errs := helper.ValidateStruct(req); errs != nil { 
-		return helper.Validation(errs) 
-	} 
-	// Satu pernyataan UPDATE saja, sehingga tidak perlu WithTx: 
-	// setiap pernyataan tunggal di PostgreSQL sudah atomik dengan sendirinya. 
-	updated, err := s.courses.UpdateQuota(ctx, id, req.Quota, req.Version) 
-	if err != nil { 
-		log.Printf("ERROR UpdateQuota service: %+v", err)
-		return translateCourseError(err) 
-	} 
-	return helper.Success(c, fiber.StatusOK, "kuota berhasil diubah", updated) 
+// ---------- PATCH /courses/:id ----------
+// Dijaga middleware dengan permission course:manage.
+func (s *CourseService) UpdateQuota(c *fiber.Ctx) error {
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	id, valid := helper.ParamID(c)
+	if !valid {
+		return helper.BadRequest("id harus berupa angka positif")
+	}
+	var req model.UpdateQuotaRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest("body harus berupa JSON yang valid")
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+
+	// Sekarang ada DUA perubahan di dua tabel: kuota di courses dan catatan
+	// event di outbox. Keduanya harus tersimpan bersama atau batal bersama,
+	// jadi wajib di dalam satu transaction.
+	var updated model.Course
+	err := s.tx.WithTx(ctx, func(tx repository.DBTX) error {
+		repo := s.courses.WithTx(tx)
+
+		var err error
+		updated, err = repo.UpdateQuota(ctx, id, req.Quota, req.Version)
+		if err != nil {
+			return err
+		}
+
+		// Daftar peserta dibaca di transaction yang sama, sehingga konsisten
+		// dengan kuota yang baru saja diubah.
+		ids, err := repo.ListParticipantIDs(ctx, id)
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil // tidak ada peserta, tidak ada yang perlu diberi tahu
+		}
+
+		return s.outbox.WithTx(tx).Insert(ctx, model.EventCourseQuotaChanged, model.QuotaChangedEvent{
+			CourseID: updated.ID, CourseCode: updated.Code, CourseName: updated.Name,
+			Quota: req.Quota, UserIDs: ids,
+		})
+	})
+	if err != nil {
+		return translateCourseError(err)
+	}
+	return helper.Success(c, fiber.StatusOK, "kuota berhasil diubah", updated)
 }
 
 
@@ -301,8 +350,16 @@ func (s *CourseService) Drop(c *fiber.Ctx) error {
 			return err
 		}
 
-		_, err := repo.DecrementEnrolled(ctx, courseID)
-		return err
+		course, err := repo.DecrementEnrolled(ctx, courseID)
+		if err !=nil {
+			return err
+		}
+		return s.outbox.WithTx(tx).Insert(ctx, model.EventEnrollmentDropped, model.EnrollmentEvent{
+			UserID: current.UserID, 
+			CourseID: courseID,
+			CourseCode: course.Code, 
+			CourseName: course.Name,
+		})
 	})
 
 	if err != nil {
