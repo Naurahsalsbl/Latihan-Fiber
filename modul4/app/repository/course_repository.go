@@ -35,6 +35,7 @@ type CourseRepository interface {
     LockCourses(ctx context.Context, ids ...int) error
     UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error)
     IsEnrolled(context.Context, int, int) (bool, error)
+    ListParticipantIDs(ctx context.Context, courseID int) ([]int, error)
 } 
 
 const courseColumns = `id, code, name, credits, quota, enrolled_count, version, created_at`
@@ -388,4 +389,23 @@ func (r *coursePostgresRepository) IsEnrolled(ctx context.Context, courseID, use
             return false, fmt.Errorf("memeriksa pendaftaran: %w", err) 
         } 
         return exists, nil 
+}
+
+func (r *coursePostgresRepository) ListParticipantIDs(ctx context.Context, courseID int) ([]int, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT user_id FROM enrollments WHERE course_id = $1 ORDER BY user_id`, courseID)
+	if err != nil {
+		return nil, fmt.Errorf("mengambil peserta kelas: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []int{}
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("membaca peserta kelas: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
