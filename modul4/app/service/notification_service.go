@@ -37,6 +37,15 @@ func NewNotificationService(
 	}
 }
 
+// Mine godoc 
+// 
+// @Summary Notifikasi milik mahasiswa yang sedang login 
+// @Tags notifications 
+// @Produce json 
+// @Success 200 {object} model.WebResponse{data=[]model.Notification} 
+// @Failure 401 {object} model.ErrorResponse 
+// @Security BearerAuth 
+// @Router /notifications/mine [get]
 // ---------- GET /notifications/mine ----------
 func (s *NotificationService) Mine(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
@@ -60,6 +69,16 @@ func (s *NotificationService) Mine(c *fiber.Ctx) error {
 	)
 }
 
+// Monitor godoc 
+// 
+// @Summary Keadaan outbox dan queue (admin) 
+// @Description Membutuhkan permission queue:monitor. Tetap menjawab 200 saat Redis mati; field queue_error menjelaskan sebabnya. 
+// @Tags admin 
+// @Produce json 
+// @Success 200 {object} model.WebResponse{data=model.QueueStats} 
+// @Failure 403 {object} model.ErrorResponse 
+// @Security BearerAuth 
+// @Router /admin/queue [get]
 // ---------- GET /admin/queue ----------
 // Dijaga middleware dengan permission queue:monitor.
 func (s *NotificationService) Monitor(c *fiber.Ctx) error {
