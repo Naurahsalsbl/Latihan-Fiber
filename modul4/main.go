@@ -20,10 +20,20 @@ import (
 	"latihan-fiber/modul4/database"
 	"latihan-fiber/modul4/helper"
 	"latihan-fiber/modul4/route"
+
+	_ "latihan-fiber/modul4/docs"
 )
 
 const minSecretLength = 32
-
+// @title API KRS Praktikum Backend Lanjut
+// @version 1.0
+// @description API pendaftaran kelas (KRS), ulasan kelas, dan notifikasi.
+// @description Seluruh endpoint selain /auth memerlukan access token.
+// @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Isi dengan: Bearer <access_token>
 func main() {
 	config.LoadEnv()
 
@@ -176,6 +186,7 @@ func startAPI(logger *slog.Logger, pool *pgxpool.Pool) *fiber.App {
 		Permissions: permissions,
 		MongoClient: mongoClient,
 		MongoDB:     mongoDB,
+		EnableSwagger: config.GetEnv("SWAGGER_ENABLED", "false") == "true",
 
 		StudentService: service.NewStudentService(studentRepository, permissions),
 		AuthService: service.NewAuthService(
